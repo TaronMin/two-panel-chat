@@ -1,7 +1,5 @@
 # Chat
 
-[![CI](https://github.com/TaronMin/two-panel-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/TaronMin/two-panel-chat/actions/workflows/ci.yml)
-
 **▶ Live demo: <https://taronmin.github.io/two-panel-chat/>**
 
 One conversation, rendered simultaneously from both sides. The left panel is the **User**;
@@ -302,33 +300,3 @@ Message {
 | `client` | `npm start` | Dev server on 4200 |
 | `client` | `npm run build` | Production bundle |
 | `client` | `npm run lint` | oxlint, type-aware |
-
-### Tests
-
-| Location | Command | Covers |
-|---|---|---|
-| `server` | `npm test` | Unit — `src/**/*.spec.ts` |
-| `server` | `npm run test:e2e` | End-to-end — `test/*.e2e-spec.ts` |
-| `server` | `npm run test:cov` | Unit tests with coverage |
-| `client` | `npm run test:ci` | Unit — `src/**/*.spec.ts`, once and exit |
-| `client` | `npm test` | The same, in watch mode |
-
-Server unit tests cover the store's tombstone semantics, the presence service's
-multi-connection bookkeeping, `ConversationService` orchestration — including that a failed
-generation still clears the typing and `ai:generating` flags — and `AiService` degrading to
-the mock provider when the vendor is unconfigured or throws.
-
-The e2e suite boots the real `AppModule` on an ephemeral port with `AI_PROVIDER=mock` and
-drives it through two live socket.io clients, so the REST-write / socket-read split above is
-asserted rather than described: a message POSTed by one panel has to arrive at the other over
-the wire. `test/app.factory.ts` is the shared harness.
-
-Client tests run on the Angular `unit-test` builder with vitest and jsdom. They cover the
-markdown sanitiser's handling of `javascript:`/`data:`/`vbscript:` hrefs, the connection
-registry's aggregation, `PanelChatService` — including the send/broadcast de-duplication
-described above — and the answerer panel's auto-answer effect, which must still answer a
-message that arrived while the previous reply was generating.
-
-CI (`.github/workflows/ci.yml`) runs lint, build and both test suites for each package on
-every push and pull request. The Pages deploy runs the client tests first, so a failing test
-blocks the release.
