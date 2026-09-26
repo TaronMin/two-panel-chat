@@ -22,6 +22,7 @@ export class ConversationListComponent {
   readonly select = output<string>();
   readonly remove = output<string>();
   readonly create = output<void>();
+  readonly clear = output<void>();
 
   protected onSelect(id: string): void {
     if (id !== this.activeId()) {

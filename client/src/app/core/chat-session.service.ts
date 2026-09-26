@@ -37,7 +37,6 @@ export class ChatSessionService {
     sessionStorage.setItem(CONVERSATION_KEY, conversation.id);
     this.conversation.set(conversation);
     this.pendingConversation = Promise.resolve(conversation);
-    this.history.remember(conversation);
   }
 
   private async resolveConversation(): Promise<Conversation> {

@@ -69,40 +69,92 @@ describe('ChatHistoryService', () => {
     return TestBed.inject(ChatHistoryService);
   }
 
+  function seed(id: string, createdAt = '2026-01-01T10:00:00.000Z'): void {
+    history.track(id, [message('seed-' + id, 'user', 'seed message', createdAt)], 'Chat');
+  }
+
   beforeEach(() => {
     localStorage.clear();
     api = new FakeChatApi();
     history = build();
   });
 
-  describe('remember', () => {
+  describe('track', () => {
     it('starts empty', () => {
       expect(history.summaries()).toEqual([]);
       expect(history.count()).toBe(0);
     });
 
-    it('adds a conversation with a placeholder preview', () => {
-      history.remember(conversation('c1'));
+    it('creates no entry for a conversation with no messages', () => {
+      history.track('c1', [], 'Chat');
+
+      expect(history.summaries()).toEqual([]);
+    });
+
+    it('creates no entry when every message is deleted', () => {
+      history.track(
+        'c1',
+        [
+          message('m1', 'user', '', '2026-01-01T11:00:00.000Z', {
+            deletedAt: '2026-01-01T11:01:00.000Z',
+          }),
+        ],
+        'Chat',
+      );
+
+      expect(history.summaries()).toEqual([]);
+    });
+
+    it('creates the entry once the first message arrives', () => {
+      history.track(
+        'c1',
+        [message('m1', 'user', 'Hello there', '2026-01-01T11:00:00.000Z')],
+        'Chat',
+      );
 
       expect(history.summaries()).toHaveLength(1);
       expect(history.summaries()[0]).toMatchObject({
         id: 'c1',
-        label: 'Chat',
-        preview: 'No messages yet',
-        messageCount: 0,
+        label: 'Hello there',
+        preview: 'Hello there',
+        messageCount: 1,
+      });
+    });
+
+    it('updates the label and preview as the conversation grows', () => {
+      history.track(
+        'c1',
+        [message('m1', 'user', 'First question', '2026-01-01T11:00:00.000Z')],
+        'Chat',
+      );
+      history.track(
+        'c1',
+        [
+          message('m1', 'user', 'First question', '2026-01-01T11:00:00.000Z'),
+          message('m2', 'answerer', 'Here is the answer', '2026-01-01T11:01:00.000Z'),
+        ],
+        'Chat',
+      );
+
+      expect(history.summaries()).toHaveLength(1);
+      expect(history.summaries()[0]).toMatchObject({
+        label: 'First question',
+        preview: 'Here is the answer',
+        messageCount: 2,
       });
     });
 
     it('does not duplicate a conversation it already knows', () => {
-      history.remember(conversation('c1'));
-      history.remember(conversation('c1'));
+      const messages = [message('m1', 'user', 'Hello', '2026-01-01T11:00:00.000Z')];
+      history.track('c1', messages, 'Chat');
+      history.track('c1', messages, 'Chat');
 
       expect(history.summaries()).toHaveLength(1);
     });
 
-    it('orders newest first', () => {
-      history.remember(conversation('older', '2026-01-01T10:00:00.000Z'));
-      history.remember(conversation('newer', '2026-01-02T10:00:00.000Z'));
+    it('orders newest first by latest message', () => {
+      history.track('older', [message('m1', 'user', 'a', '2026-01-01T10:00:00.000Z')], 'Chat');
+      history.track('newer', [message('m2', 'user', 'b', '2026-01-02T10:00:00.000Z')], 'Chat');
 
       expect(history.summaries().map((entry) => entry.id)).toEqual(['newer', 'older']);
     });
@@ -110,7 +162,7 @@ describe('ChatHistoryService', () => {
     it('caps the list at 25 entries', () => {
       for (let index = 0; index < 30; index += 1) {
         const stamp = `2026-01-01T10:${String(index).padStart(2, '0')}:00.000Z`;
-        history.remember(conversation(`c${index}`, stamp));
+        history.track(`c${index}`, [message(`m${index}`, 'user', 'hi', stamp)], 'Chat');
       }
 
       expect(history.summaries()).toHaveLength(25);
@@ -120,8 +172,8 @@ describe('ChatHistoryService', () => {
 
   describe('forget', () => {
     it('drops the entry', () => {
-      history.remember(conversation('c1'));
-      history.remember(conversation('c2'));
+      history.track('c1', [message('m1', 'user', 'a', '2026-01-01T10:00:00.000Z')], 'Chat');
+      history.track('c2', [message('m2', 'user', 'b', '2026-01-02T10:00:00.000Z')], 'Chat');
 
       history.forget('c1');
 
@@ -129,16 +181,39 @@ describe('ChatHistoryService', () => {
     });
 
     it('ignores an unknown id', () => {
-      history.remember(conversation('c1'));
+      history.track('c1', [message('m1', 'user', 'a', '2026-01-01T10:00:00.000Z')], 'Chat');
       history.forget('nope');
 
       expect(history.summaries()).toHaveLength(1);
+    });
+
+    it('lets the list reach empty', () => {
+      history.track('c1', [message('m1', 'user', 'a', '2026-01-01T10:00:00.000Z')], 'Chat');
+      history.track('c2', [message('m2', 'user', 'b', '2026-01-02T10:00:00.000Z')], 'Chat');
+
+      history.forget('c1');
+      history.forget('c2');
+
+      expect(history.summaries()).toEqual([]);
+      expect(build().summaries()).toEqual([]);
+    });
+  });
+
+  describe('clear', () => {
+    it('empties the list and the stored copy', () => {
+      history.track('c1', [message('m1', 'user', 'a', '2026-01-01T10:00:00.000Z')], 'Chat');
+      history.track('c2', [message('m2', 'user', 'b', '2026-01-02T10:00:00.000Z')], 'Chat');
+
+      history.clear();
+
+      expect(history.summaries()).toEqual([]);
+      expect(build().summaries()).toEqual([]);
     });
   });
 
   describe('persistence', () => {
     it('reloads what a previous instance stored', () => {
-      history.remember(conversation('c1'));
+      seed('c1');
 
       const reloaded = build();
 
@@ -167,7 +242,7 @@ describe('ChatHistoryService', () => {
           message('m2', 'answerer', 'Looking into it', '2026-01-01T11:01:00.000Z'),
         ]),
       );
-      history.remember(conversation('c1'));
+      seed('c1');
 
       await history.refresh();
 
@@ -181,7 +256,7 @@ describe('ChatHistoryService', () => {
     it('collapses whitespace and truncates a long label', async () => {
       const long = 'word '.repeat(40);
       api.states.set('c1', state('c1', [message('m1', 'user', long, '2026-01-01T11:00:00.000Z')]));
-      history.remember(conversation('c1'));
+      seed('c1');
 
       await history.refresh();
 
@@ -201,7 +276,7 @@ describe('ChatHistoryService', () => {
           message('m2', 'user', 'The real question', '2026-01-01T11:02:00.000Z'),
         ]),
       );
-      history.remember(conversation('c1'));
+      seed('c1');
 
       await history.refresh();
 
@@ -213,7 +288,7 @@ describe('ChatHistoryService', () => {
         'c1',
         state('c1', [message('m1', 'answerer', 'Hello there', '2026-01-01T11:00:00.000Z')]),
       );
-      history.remember(conversation('c1'));
+      seed('c1');
 
       await history.refresh();
 
@@ -221,10 +296,27 @@ describe('ChatHistoryService', () => {
     });
 
     it('drops a conversation the server no longer has', async () => {
-      api.states.set('kept', state('kept', [], '2026-01-01T10:00:00.000Z'));
+      api.states.set(
+        'kept',
+        state('kept', [message('m1', 'user', 'still here', '2026-01-01T10:00:00.000Z')]),
+      );
       api.failures.set('gone', new HttpErrorResponse({ status: 404 }));
-      history.remember(conversation('kept', '2026-01-01T10:00:00.000Z'));
-      history.remember(conversation('gone', '2026-01-02T10:00:00.000Z'));
+      seed('kept', '2026-01-01T10:00:00.000Z');
+      seed('gone', '2026-01-02T10:00:00.000Z');
+
+      await history.refresh();
+
+      expect(history.summaries().map((entry) => entry.id)).toEqual(['kept']);
+    });
+
+    it('prunes an entry whose conversation has no messages left', async () => {
+      api.states.set('empty', state('empty', []));
+      api.states.set(
+        'kept',
+        state('kept', [message('m1', 'user', 'still here', '2026-01-02T10:00:00.000Z')]),
+      );
+      seed('empty', '2026-01-01T10:00:00.000Z');
+      seed('kept', '2026-01-02T10:00:00.000Z');
 
       await history.refresh();
 
@@ -233,7 +325,7 @@ describe('ChatHistoryService', () => {
 
     it('keeps entries when the lookup fails for a reason other than 404', async () => {
       api.failures.set('c1', new HttpErrorResponse({ status: 0 }));
-      history.remember(conversation('c1'));
+      seed('c1');
 
       await history.refresh();
 
@@ -255,8 +347,8 @@ describe('ChatHistoryService', () => {
         'busy',
         state('busy', [message('m2', 'user', 'recent', '2026-01-05T09:00:00.000Z')]),
       );
-      history.remember(conversation('busy', '2026-01-01T08:00:00.000Z'));
-      history.remember(conversation('quiet', '2026-01-02T08:00:00.000Z'));
+      seed('busy', '2026-01-01T08:00:00.000Z');
+      seed('quiet', '2026-01-02T08:00:00.000Z');
 
       await history.refresh();
 
@@ -265,7 +357,7 @@ describe('ChatHistoryService', () => {
 
     it('clears the refreshing flag when it finishes', async () => {
       api.states.set('c1', state('c1', []));
-      history.remember(conversation('c1'));
+      seed('c1');
 
       const pending = history.refresh();
       expect(history.isRefreshing()).toBe(true);
@@ -282,7 +374,7 @@ describe('ChatHistoryService', () => {
 
     it('is set once a refresh completes', async () => {
       api.states.set('c1', state('c1', []));
-      history.remember(conversation('c1'));
+      seed('c1');
 
       await history.refresh();
 
@@ -297,7 +389,7 @@ describe('ChatHistoryService', () => {
 
     it('is set even when every lookup fails', async () => {
       api.failures.set('c1', new HttpErrorResponse({ status: 500 }));
-      history.remember(conversation('c1'));
+      seed('c1');
 
       await history.refresh();
 

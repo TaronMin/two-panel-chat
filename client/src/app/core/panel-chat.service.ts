@@ -1,7 +1,8 @@
-import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { ChatApiService } from './chat-api.service';
+import { ChatHistoryService } from './chat-history.service';
 import { SocketService } from './socket.service';
 import {
   ServerEvents,
@@ -17,6 +18,7 @@ const TYPING_IDLE_MS = 1500;
 export class PanelChatService {
   private readonly socket = inject(SocketService);
   private readonly chatApi = inject(ChatApiService);
+  private readonly history = inject(ChatHistoryService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly messages = signal<Message[]>([]);
@@ -32,8 +34,18 @@ export class PanelChatService {
 
   private viewerRole: SenderRole = 'user';
   private conversationId = '';
+  private conversationTitle = '';
   private typingTimer: ReturnType<typeof setTimeout> | null = null;
   private isBroadcastingTyping = false;
+
+  constructor() {
+    effect(() => {
+      const messages = this.messages();
+      if (this.conversationId) {
+        this.history.track(this.conversationId, messages, this.conversationTitle);
+      }
+    });
+  }
 
   async joinConversation(conversationId: string, role: SenderRole): Promise<void> {
     this.conversationId = conversationId;
@@ -162,6 +174,7 @@ export class PanelChatService {
       .on(ServerEvents.ConversationState)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((state) => {
+        this.conversationTitle = state.conversation.title;
         this.messages.set(state.messages);
         this.typing.set(state.typing);
         this.online.set(state.online);
