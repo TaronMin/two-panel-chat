@@ -101,10 +101,6 @@ describe('AnswererPanelComponent auto-answer', () => {
     await settleUi();
   }
 
-  beforeAll(() => {
-    Element.prototype.scrollTo = () => {};
-  });
-
   beforeEach(async () => {
     sessionStorage.clear();
     chat = new FakePanelChat();
