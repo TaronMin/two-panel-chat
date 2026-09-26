@@ -33,6 +33,7 @@ export interface ConversationState {
   answererMode: ComposeMode;
   typing: SenderRole[];
   online: SenderRole[];
+  aiGenerating: boolean;
 }
 
 export interface AiSuggestion {

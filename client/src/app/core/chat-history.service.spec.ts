@@ -35,6 +35,7 @@ function state(id: string, messages: Message[], createdAt?: string): Conversatio
     answererMode: 'manual',
     typing: [],
     online: [],
+    aiGenerating: false,
   };
 }
 

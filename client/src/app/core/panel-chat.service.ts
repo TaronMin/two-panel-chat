@@ -13,6 +13,7 @@ import {
 } from './contracts';
 
 const TYPING_IDLE_MS = 1500;
+const GENERATING_WATCHDOG_MS = 90000;
 
 @Injectable()
 export class PanelChatService {
@@ -36,6 +37,7 @@ export class PanelChatService {
   private conversationId = '';
   private conversationTitle = '';
   private typingTimer: ReturnType<typeof setTimeout> | null = null;
+  private generatingWatchdog: ReturnType<typeof setTimeout> | null = null;
   private isBroadcastingTyping = false;
 
   constructor() {
@@ -62,6 +64,7 @@ export class PanelChatService {
 
     this.destroyRef.onDestroy(() => {
       this.clearTypingTimer();
+      this.clearGeneratingWatchdog();
       this.socket.leaveConversation(conversationId);
       this.socket.disconnect();
     });
@@ -179,6 +182,7 @@ export class PanelChatService {
         this.typing.set(state.typing);
         this.online.set(state.online);
         this.answererMode.set(state.answererMode);
+        this.setGeneratingReply(state.aiGenerating === true);
       });
 
     this.socket
@@ -209,7 +213,7 @@ export class PanelChatService {
     this.socket
       .on(ServerEvents.AiGenerating)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => this.isGeneratingReply.set(event.generating));
+      .subscribe((event) => this.setGeneratingReply(event.generating));
 
     this.socket
       .on(ServerEvents.MessageReceipt)
@@ -222,6 +226,25 @@ export class PanelChatService {
           ),
         );
       });
+  }
+
+  private setGeneratingReply(generating: boolean): void {
+    this.isGeneratingReply.set(generating);
+    this.clearGeneratingWatchdog();
+
+    if (generating) {
+      this.generatingWatchdog = setTimeout(() => {
+        this.generatingWatchdog = null;
+        this.isGeneratingReply.set(false);
+      }, GENERATING_WATCHDOG_MS);
+    }
+  }
+
+  private clearGeneratingWatchdog(): void {
+    if (this.generatingWatchdog) {
+      clearTimeout(this.generatingWatchdog);
+      this.generatingWatchdog = null;
+    }
   }
 
   private clearTypingTimer(): void {

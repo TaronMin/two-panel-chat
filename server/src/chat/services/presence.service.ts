@@ -5,6 +5,7 @@ interface ConversationPresence {
   connections: Map<string, SenderRole>;
   typing: Set<SenderRole>;
   answererMode: ComposeMode;
+  aiGenerating: boolean;
 }
 
 @Injectable()
@@ -66,6 +67,14 @@ export class PresenceService {
     return this.forConversation(conversationId).answererMode;
   }
 
+  isAiGenerating(conversationId: string): boolean {
+    return this.forConversation(conversationId).aiGenerating;
+  }
+
+  setAiGenerating(conversationId: string, generating: boolean): void {
+    this.forConversation(conversationId).aiGenerating = generating;
+  }
+
   setAnswererMode(conversationId: string, mode: ComposeMode): ComposeMode {
     this.forConversation(conversationId).answererMode = mode;
     return mode;
@@ -78,6 +87,7 @@ export class PresenceService {
         connections: new Map(),
         typing: new Set(),
         answererMode: 'manual',
+        aiGenerating: false,
       };
       this.state.set(conversationId, presence);
     }

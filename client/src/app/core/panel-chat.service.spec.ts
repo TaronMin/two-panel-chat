@@ -205,6 +205,7 @@ describe('PanelChatService', () => {
         answererMode: 'ai',
         typing: ['answerer'],
         online: ['user', 'answerer'],
+        aiGenerating: false,
       };
       socket.emitServerEvent(ServerEvents.ConversationState, state);
 
@@ -252,11 +253,31 @@ describe('PanelChatService', () => {
   });
 
   describe('ai:generating', () => {
-    it('mirrors the server flag', () => {
+    function conversationState(aiGenerating: boolean): ConversationState {
+      return {
+        conversation: {
+          id: CONVERSATION_ID,
+          title: 'Chat',
+          createdAt: new Date().toISOString(),
+          participants: ['user', 'answerer'],
+        },
+        messages: [],
+        answererMode: 'ai',
+        typing: [],
+        online: ['user', 'answerer'],
+        aiGenerating,
+      };
+    }
+
+    function startGenerating(): void {
       socket.emitServerEvent(ServerEvents.AiGenerating, {
         conversationId: CONVERSATION_ID,
         generating: true,
       });
+    }
+
+    it('mirrors the server flag', () => {
+      startGenerating();
       expect(chat.isGeneratingReply()).toBe(true);
 
       socket.emitServerEvent(ServerEvents.AiGenerating, {
@@ -264,6 +285,63 @@ describe('PanelChatService', () => {
         generating: false,
       });
       expect(chat.isGeneratingReply()).toBe(false);
+    });
+
+    it('resyncs from the state snapshot a reconnect delivers', () => {
+      startGenerating();
+      expect(chat.isGeneratingReply()).toBe(true);
+
+      socket.emitServerEvent(ServerEvents.ConversationState, conversationState(false));
+
+      expect(chat.isGeneratingReply()).toBe(false);
+    });
+
+    it('stays generating when the reconnect says a reply really is in flight', () => {
+      socket.emitServerEvent(ServerEvents.ConversationState, conversationState(true));
+
+      expect(chat.isGeneratingReply()).toBe(true);
+    });
+
+    it('treats a server that omits the flag as not generating', () => {
+      startGenerating();
+
+      const legacy: Partial<ConversationState> = conversationState(false);
+      delete legacy.aiGenerating;
+      socket.emitServerEvent(ServerEvents.ConversationState, legacy as ConversationState);
+
+      expect(chat.isGeneratingReply()).toBe(false);
+    });
+
+    it('releases the panel if the finishing event never arrives', () => {
+      vi.useFakeTimers();
+      try {
+        startGenerating();
+        expect(chat.isGeneratingReply()).toBe(true);
+
+        vi.advanceTimersByTime(90_000);
+
+        expect(chat.isGeneratingReply()).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not fire the watchdog once generation finishes normally', () => {
+      vi.useFakeTimers();
+      try {
+        startGenerating();
+        socket.emitServerEvent(ServerEvents.AiGenerating, {
+          conversationId: CONVERSATION_ID,
+          generating: false,
+        });
+
+        socket.emitServerEvent(ServerEvents.ConversationState, conversationState(true));
+        vi.advanceTimersByTime(89_000);
+
+        expect(chat.isGeneratingReply()).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

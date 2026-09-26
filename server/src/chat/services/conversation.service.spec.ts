@@ -179,6 +179,28 @@ describe('ConversationService', () => {
       expect(presence.typing(conversationId)).toEqual([]);
     });
 
+    it('exposes the in-flight state so a reconnecting client can resync', async () => {
+      let observed: boolean | null = null;
+      ai.suggestReply.mockImplementation(() => {
+        observed = service.getState(conversationId).aiGenerating;
+        return Promise.resolve(SUGGESTION);
+      });
+
+      expect(service.getState(conversationId).aiGenerating).toBe(false);
+      await service.generateSuggestion(conversationId);
+
+      expect(observed).toBe(true);
+      expect(service.getState(conversationId).aiGenerating).toBe(false);
+    });
+
+    it('clears the in-flight state when the provider throws', async () => {
+      ai.suggestReply.mockRejectedValue(new Error('provider exploded'));
+
+      await expect(service.generateSuggestion(conversationId)).rejects.toThrow('provider exploded');
+
+      expect(service.getState(conversationId).aiGenerating).toBe(false);
+    });
+
     it('excludes deleted messages from the history handed to the provider', async () => {
       const kept = sendAsUser('keep me');
       const removed = sendAsUser('delete me');

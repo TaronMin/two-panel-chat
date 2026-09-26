@@ -69,6 +69,36 @@ describe('chat flow (e2e)', () => {
     expect(state.answererMode).toBe('manual');
   });
 
+  it('reports the generation state to a client that joins mid-flight', async () => {
+    await request(harness.url)
+      .post(`/api/conversations/${conversation.id}/messages`)
+      .send({ sender: 'user', content: 'Where is my order?', mode: 'manual' })
+      .expect(201);
+
+    const generating = nextEvent<{ generating: boolean }>(
+      answererSocket,
+      ServerEvents.AiGenerating,
+    );
+    const pending = request(harness.url)
+      .post(`/api/conversations/${conversation.id}/suggestions`)
+      .send({ autoSend: true });
+    void pending.then(() => undefined);
+
+    expect((await generating).generating).toBe(true);
+
+    const midFlight = await request(harness.url)
+      .get(`/api/conversations/${conversation.id}/state`)
+      .expect(200);
+    expect((midFlight.body as ConversationState).aiGenerating).toBe(true);
+
+    await pending;
+
+    const settled = await request(harness.url)
+      .get(`/api/conversations/${conversation.id}/state`)
+      .expect(200);
+    expect((settled.body as ConversationState).aiGenerating).toBe(false);
+  });
+
   it('propagates typing start and stop', async () => {
     const started = nextEvent<TypingUpdateEvent>(answererSocket, ServerEvents.TypingUpdate);
     userSocket.emit(ClientEvents.TypingStart, { conversationId: conversation.id, role: 'user' });

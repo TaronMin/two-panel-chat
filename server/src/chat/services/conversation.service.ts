@@ -45,6 +45,7 @@ export class ConversationService {
       answererMode: this.presence.getAnswererMode(conversationId),
       typing: this.presence.typing(conversationId),
       online: this.presence.online(conversationId),
+      aiGenerating: this.presence.isAiGenerating(conversationId),
     };
   }
 
@@ -139,6 +140,7 @@ export class ConversationService {
     this.store.requireConversation(conversationId);
     const history = this.store.listMessages(conversationId).filter((message) => !message.deletedAt);
 
+    this.presence.setAiGenerating(conversationId, true);
     this.broadcast.aiGenerating(conversationId, true);
     this.setTyping(conversationId, 'answerer', true);
     try {
@@ -157,6 +159,7 @@ export class ConversationService {
       });
       return { suggestion, sent };
     } finally {
+      this.presence.setAiGenerating(conversationId, false);
       this.setTyping(conversationId, 'answerer', false);
       this.broadcast.aiGenerating(conversationId, false);
     }
