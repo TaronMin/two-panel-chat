@@ -197,7 +197,7 @@ describe('PanelChatService', () => {
       const state: ConversationState = {
         conversation: {
           id: CONVERSATION_ID,
-          title: 'Two-panel chat',
+          title: 'Chat',
           createdAt: new Date().toISOString(),
           participants: ['user', 'answerer'],
         },

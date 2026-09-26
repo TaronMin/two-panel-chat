@@ -1,79 +1,175 @@
-<div class="mx-auto flex h-dvh max-w-7xl flex-col gap-2 p-2 sm:gap-3 sm:p-4">
-  <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1">
-    <div class="min-w-0">
-      <h1 class="truncate text-sm font-semibold text-slate-800 sm:text-base">
-        {{ session.conversation()?.title ?? 'Two-panel chat' }}
-      </h1>
-      <p class="hidden text-[11px] text-slate-500 sm:block">
-        One conversation, two perspectives every message travels over the hub.
-      </p>
-    </div>
+<div class="mx-auto flex h-dvh max-w-[90rem] gap-3 p-2 sm:p-4">
+  <aside
+    class="hidden w-64 shrink-0 flex-col rounded-2xl bg-slate-100/80 ring-1 ring-slate-200 lg:flex"
+    aria-label="Chat history"
+  >
+    <app-conversation-list
+      class="min-h-0 flex-1"
+      [summaries]="history.summaries()"
+      [activeId]="conversationId()"
+      [refreshing]="history.isRefreshing()"
+      [loaded]="history.hasLoaded()"
+      (select)="selectConversation($event)"
+      (remove)="removeConversation($event)"
+      (create)="startNewConversation()"
+    />
+  </aside>
 
-    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+  <div class="flex min-w-0 flex-1 flex-col gap-2 sm:gap-3">
+    <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1">
+      <div class="flex min-w-0 items-center gap-2">
+        <button
+          type="button"
+          (click)="toggleHistory()"
+          aria-label="Open chat history"
+          [attr.aria-expanded]="historyOpen()"
+          class="-ml-1 shrink-0 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200/70 hover:text-slate-700 lg:hidden"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path
+              d="M2 5.75A.75.75 0 0 1 2.75 5h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 5.75Zm0 4.25a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10Zm0 4.25a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z"
+            />
+          </svg>
+        </button>
+        <div class="min-w-0">
+          <h1 class="truncate text-sm font-semibold text-slate-800 sm:text-base">
+            {{ session.conversation()?.title ?? 'Chat' }}
+          </h1>
+          <p class="hidden text-[11px] text-slate-500 sm:block">
+            One conversation, two perspectives every message travels over the hub.
+          </p>
+        </div>
+      </div>
+
       <span
-        class="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium shadow-sm ring-1 ring-slate-200"
+        class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium shadow-sm ring-1 ring-slate-200"
         [class]="statusTextClass()"
         role="status"
       >
         <span class="h-2 w-2 rounded-full" [class]="statusDotClass()" aria-hidden="true"></span>
         <span class="hidden sm:inline">{{ statusLabel() }}</span>
       </span>
+    </header>
 
-      <button
-        type="button"
-        (click)="startNewConversation()"
-        class="rounded-full bg-slate-800 px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-slate-700"
+    @if (session.sessionError(); as error) {
+      <p class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
+        {{ error }}
+      </p>
+    }
+
+    @for (id of mountedConversation(); track id) {
+      <div
+        class="flex rounded-xl bg-slate-200/70 p-0.5 lg:hidden"
+        role="tablist"
+        aria-label="Choose a panel"
       >
-        New<span class="hidden sm:inline"> conversation</span>
-      </button>
-    </div>
-  </header>
-
-  @if (session.sessionError(); as error) {
-    <p class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
-      {{ error }}
-    </p>
-  }
-
-  @if (conversationId(); as id) {
-    <div
-      class="flex rounded-xl bg-slate-200/70 p-0.5 lg:hidden"
-      role="tablist"
-      aria-label="Choose a panel"
-    >
-      <button
-        type="button"
-        role="tab"
-        [attr.aria-selected]="activePanel() === 'user'"
-        (click)="activePanel.set('user')"
-        class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
-        [class]="tabClass('user')"
-      >
-        User
-      </button>
-      <button
-        type="button"
-        role="tab"
-        [attr.aria-selected]="activePanel() === 'answerer'"
-        (click)="activePanel.set('answerer')"
-        class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
-        [class]="tabClass('answerer')"
-      >
-        Answerer
-      </button>
-    </div>
-
-    <main class="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2">
-      <div [class]="panelVisibilityClass('user')">
-        <app-user-panel class="min-h-0 flex-1" [conversationId]="id" />
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="activePanel() === 'user'"
+          (click)="activePanel.set('user')"
+          class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+          [class]="tabClass('user')"
+        >
+          User
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="activePanel() === 'answerer'"
+          (click)="activePanel.set('answerer')"
+          class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+          [class]="tabClass('answerer')"
+        >
+          Answerer
+        </button>
       </div>
-      <div [class]="panelVisibilityClass('answerer')">
-        <app-answerer-panel class="min-h-0 flex-1" [conversationId]="id" />
-      </div>
-    </main>
-  } @else if (!session.sessionError()) {
-    <p class="flex flex-1 items-center justify-center text-sm text-slate-400">
-      Starting a conversation…
-    </p>
-  }
+
+      <main class="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2">
+        <div [class]="panelVisibilityClass('user')">
+          <app-user-panel class="min-h-0 flex-1" [conversationId]="id" />
+        </div>
+        <div [class]="panelVisibilityClass('answerer')">
+          <app-answerer-panel class="min-h-0 flex-1" [conversationId]="id" />
+        </div>
+      </main>
+    } @empty {
+      @if (isOpeningConversation()) {
+        <div
+          class="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2"
+          role="status"
+          aria-label="Opening the conversation"
+        >
+          @for (panel of loadingPanels; track panel) {
+            <div
+              class="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
+              [class]="panel === 'answerer' ? 'hidden lg:flex' : 'flex'"
+            >
+              <div class="flex items-center gap-2.5 border-b border-slate-100 px-4 py-3">
+                <span class="h-8 w-8 shrink-0 animate-pulse rounded-full bg-slate-200"></span>
+                <span class="h-3 w-24 animate-pulse rounded bg-slate-200"></span>
+              </div>
+              <div class="flex flex-1 flex-col gap-3 p-4">
+                <span class="h-8 w-1/2 animate-pulse rounded-2xl bg-slate-100"></span>
+                <span class="h-8 w-2/3 animate-pulse self-end rounded-2xl bg-slate-100"></span>
+                <span class="h-8 w-2/5 animate-pulse rounded-2xl bg-slate-100"></span>
+              </div>
+              <div class="border-t border-slate-100 bg-slate-50/70 px-4 py-3">
+                <span class="block h-9 w-full animate-pulse rounded-xl bg-slate-200/70"></span>
+              </div>
+            </div>
+          }
+        </div>
+      } @else if (!session.sessionError()) {
+        <p class="flex flex-1 items-center justify-center text-sm text-slate-400">
+          No conversation open.
+        </p>
+      }
+    }
+  </div>
 </div>
+
+@if (historyOpen()) {
+  <div class="fixed inset-0 z-40 lg:hidden">
+    <button
+      type="button"
+      (click)="closeHistory()"
+      tabindex="-1"
+      aria-label="Close chat history"
+      class="absolute inset-0 h-full w-full bg-slate-900/40"
+    ></button>
+
+    <div
+      class="absolute inset-y-0 left-0 flex w-[17rem] max-w-[85vw] flex-col bg-slate-100 shadow-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Chat history"
+    >
+      <div class="flex items-center justify-end px-2 pt-2">
+        <button
+          type="button"
+          (click)="closeHistory()"
+          aria-label="Close chat history"
+          class="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path
+              d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <app-conversation-list
+        class="min-h-0 flex-1"
+        [summaries]="history.summaries()"
+        [activeId]="conversationId()"
+        [refreshing]="history.isRefreshing()"
+        [loaded]="history.hasLoaded()"
+        (select)="selectConversation($event)"
+        (remove)="removeConversation($event)"
+        (create)="startNewConversation()"
+      />
+    </div>
+  </div>
+}
