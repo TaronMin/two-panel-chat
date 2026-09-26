@@ -26,7 +26,7 @@
     [messages]="chat.messages()"
     viewerRole="user"
     [typingLabel]="typingLabel()"
-    [canModify]="chat.ready() && !busy()"
+    [canModify]="chat.isReady() && !isSending()"
     emptyHint="Say something to start the conversation."
     (editMessage)="onEditMessage($event)"
     (deleteMessage)="onDeleteMessage($event)"
@@ -37,8 +37,8 @@
   }
 
   <form
-    [formGroup]="form"
-    (ngSubmit)="submit()"
+    [formGroup]="composerForm"
+    (ngSubmit)="sendMessage()"
     class="flex items-end gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-3"
   >
     <div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -48,27 +48,29 @@
         formControlName="content"
         rows="1"
         placeholder="Type a message…"
-        [attr.maxlength]="maxLength"
+        [attr.maxlength]="messageMaxLength"
         class="max-h-32 min-h-[2.5rem] w-full resize-y rounded-xl border-0 bg-white px-3 py-2 text-base text-slate-700 shadow-sm ring-1 ring-slate-200 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 sm:text-sm"
-        (input)="onInput()"
-        (keydown.enter)="onEnter($event)"
+        (input)="onComposerInput()"
+        (keydown.enter)="onComposerEnter($event)"
       ></textarea>
-      @if (showCounter()) {
+      @if (showContentCounter()) {
         <p
           class="px-1 text-right text-[10px] tabular-nums"
-          [class]="contentLength() >= maxLength ? 'font-semibold text-rose-600' : 'text-slate-400'"
+          [class]="
+            contentLength() >= messageMaxLength ? 'font-semibold text-rose-600' : 'text-slate-400'
+          "
           aria-live="polite"
         >
-          {{ contentLength() }} / {{ maxLength }}
+          {{ contentLength() }} / {{ messageMaxLength }}
         </p>
       }
     </div>
     <button
       type="submit"
-      [disabled]="form.invalid || !chat.ready() || busy()"
+      [disabled]="composerForm.invalid || !chat.isReady() || isSending()"
       class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
     >
-      {{ busy() ? 'Sending…' : 'Send' }}
+      {{ isSending() ? 'Sending…' : 'Send' }}
     </button>
   </form>
 </section>

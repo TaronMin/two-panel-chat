@@ -7,23 +7,23 @@ const CONVERSATION_KEY = 'chat.conversationId';
 
 @Injectable({ providedIn: 'root' })
 export class ChatSessionService {
-  private readonly api = inject(ChatApiService);
+  private readonly chatApi = inject(ChatApiService);
 
   readonly conversation = signal<Conversation | null>(null);
-  readonly error = signal<string | null>(null);
+  readonly sessionError = signal<string | null>(null);
 
-  private bootstrapping: Promise<Conversation> | null = null;
+  private pendingConversation: Promise<Conversation> | null = null;
 
-  bootstrap(): Promise<Conversation> {
-    this.bootstrapping ??= this.resolveConversation();
-    return this.bootstrapping;
+  ensureConversation(): Promise<Conversation> {
+    this.pendingConversation ??= this.resolveConversation();
+    return this.pendingConversation;
   }
 
   async startNewConversation(): Promise<Conversation> {
-    const conversation = await firstValueFrom(this.api.createConversation('Two-panel chat'));
+    const conversation = await firstValueFrom(this.chatApi.createConversation('Two-panel chat'));
     sessionStorage.setItem(CONVERSATION_KEY, conversation.id);
     this.conversation.set(conversation);
-    this.bootstrapping = Promise.resolve(conversation);
+    this.pendingConversation = Promise.resolve(conversation);
     return conversation;
   }
 
@@ -32,7 +32,7 @@ export class ChatSessionService {
       const existingId = sessionStorage.getItem(CONVERSATION_KEY);
       if (existingId) {
         try {
-          const state = await firstValueFrom(this.api.getState(existingId));
+          const state = await firstValueFrom(this.chatApi.getState(existingId));
           this.conversation.set(state.conversation);
           return state.conversation;
         } catch {
@@ -41,7 +41,9 @@ export class ChatSessionService {
       }
       return await this.startNewConversation();
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Could not reach the chat backend.');
+      this.sessionError.set(
+        error instanceof Error ? error.message : 'Something went wrong, please try later.',
+      );
       throw error;
     }
   }

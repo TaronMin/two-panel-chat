@@ -16,35 +16,35 @@ const TYPING_IDLE_MS = 1500;
 @Injectable()
 export class PanelChatService {
   private readonly socket = inject(SocketService);
-  private readonly api = inject(ChatApiService);
+  private readonly chatApi = inject(ChatApiService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly messages = signal<Message[]>([]);
   readonly typing = signal<SenderRole[]>([]);
   readonly online = signal<SenderRole[]>([]);
   readonly answererMode = signal<ComposeMode>('manual');
-  readonly aiGenerating = signal(false);
-  readonly joined = signal(false);
+  readonly isGeneratingReply = signal(false);
+  readonly hasJoined = signal(false);
   readonly sendError = signal<string | null>(null);
   readonly status = this.socket.status;
 
-  readonly ready = computed(() => this.joined() && this.status() === 'connected');
+  readonly isReady = computed(() => this.hasJoined() && this.status() === 'connected');
 
-  private role: SenderRole = 'user';
+  private viewerRole: SenderRole = 'user';
   private conversationId = '';
   private typingTimer: ReturnType<typeof setTimeout> | null = null;
-  private typingActive = false;
+  private isBroadcastingTyping = false;
 
-  async init(conversationId: string, role: SenderRole): Promise<void> {
+  async joinConversation(conversationId: string, role: SenderRole): Promise<void> {
     this.conversationId = conversationId;
-    this.role = role;
+    this.viewerRole = role;
 
     this.socket.connect();
-    this.subscribe();
+    this.subscribeToServerEvents();
 
     this.socket.onConnected(() => {
       void this.socket.joinConversation(conversationId, role).then((ack) => {
-        this.joined.set(ack.ok);
+        this.hasJoined.set(ack.ok);
       });
     });
 
@@ -55,7 +55,7 @@ export class PanelChatService {
     });
   }
 
-  async send(content: string, mode: ComposeMode, generatedBy?: string): Promise<boolean> {
+  async sendMessage(content: string, mode: ComposeMode, generatedBy?: string): Promise<boolean> {
     const trimmed = content.trim();
     if (!trimmed) {
       return false;
@@ -66,14 +66,14 @@ export class PanelChatService {
 
     try {
       const message = await firstValueFrom(
-        this.api.sendMessage(this.conversationId, {
-          sender: this.role,
+        this.chatApi.sendMessage(this.conversationId, {
+          sender: this.viewerRole,
           content: trimmed,
           mode,
           generatedBy,
         }),
       );
-      this.applyMessage(message);
+      this.appendMessage(message);
       return true;
     } catch (error) {
       this.sendError.set(error instanceof Error ? error.message : 'Could not reach the server.');
@@ -86,16 +86,18 @@ export class PanelChatService {
     if (!trimmed) {
       return false;
     }
-    return this.mutate(() =>
-      this.socket.editMessage(this.conversationId, messageId, this.role, trimmed),
+    return this.sendMutation(() =>
+      this.socket.editMessage(this.conversationId, messageId, this.viewerRole, trimmed),
     );
   }
 
   async deleteMessage(messageId: string): Promise<boolean> {
-    return this.mutate(() => this.socket.deleteMessage(this.conversationId, messageId, this.role));
+    return this.sendMutation(() =>
+      this.socket.deleteMessage(this.conversationId, messageId, this.viewerRole),
+    );
   }
 
-  private async mutate(send: () => Promise<MutateMessageAck>): Promise<boolean> {
+  private async sendMutation(send: () => Promise<MutateMessageAck>): Promise<boolean> {
     this.sendError.set(null);
     try {
       const ack = await send();
@@ -103,7 +105,7 @@ export class PanelChatService {
         this.sendError.set(ack.error ?? 'The server rejected that change.');
         return false;
       }
-      this.applyUpdate(ack.message);
+      this.replaceMessage(ack.message);
       return true;
     } catch (error) {
       this.sendError.set(error instanceof Error ? error.message : 'Could not reach the server.');
@@ -111,14 +113,14 @@ export class PanelChatService {
     }
   }
 
-  noteActivity(hasText: boolean): void {
+  reportComposerActivity(hasText: boolean): void {
     if (!hasText) {
       this.stopTyping();
       return;
     }
-    if (!this.typingActive) {
-      this.typingActive = true;
-      this.socket.setTyping(this.conversationId, this.role, true);
+    if (!this.isBroadcastingTyping) {
+      this.isBroadcastingTyping = true;
+      this.socket.setTyping(this.conversationId, this.viewerRole, true);
     }
     this.clearTypingTimer();
     this.typingTimer = setTimeout(() => this.stopTyping(), TYPING_IDLE_MS);
@@ -126,9 +128,9 @@ export class PanelChatService {
 
   stopTyping(): void {
     this.clearTypingTimer();
-    if (this.typingActive) {
-      this.typingActive = false;
-      this.socket.setTyping(this.conversationId, this.role, false);
+    if (this.isBroadcastingTyping) {
+      this.isBroadcastingTyping = false;
+      this.socket.setTyping(this.conversationId, this.viewerRole, false);
     }
   }
 
@@ -138,24 +140,24 @@ export class PanelChatService {
 
   markCounterpartMessagesRead(): void {
     const unread = this.messages()
-      .filter((message) => message.sender !== this.role && message.status !== 'read')
+      .filter((message) => message.sender !== this.viewerRole && message.status !== 'read')
       .map((message) => message.id);
-    this.socket.markRead(this.conversationId, this.role, unread);
+    this.socket.markRead(this.conversationId, this.viewerRole, unread);
   }
 
-  private applyMessage(message: Message): void {
+  private appendMessage(message: Message): void {
     this.messages.update((messages) =>
       messages.some((existing) => existing.id === message.id) ? messages : [...messages, message],
     );
   }
 
-  private applyUpdate(message: Message): void {
+  private replaceMessage(message: Message): void {
     this.messages.update((messages) =>
       messages.map((existing) => (existing.id === message.id ? message : existing)),
     );
   }
 
-  private subscribe(): void {
+  private subscribeToServerEvents(): void {
     this.socket
       .on(ServerEvents.ConversationState)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -169,12 +171,12 @@ export class PanelChatService {
     this.socket
       .on(ServerEvents.MessageNew)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ message }) => this.applyMessage(message));
+      .subscribe(({ message }) => this.appendMessage(message));
 
     this.socket
       .on(ServerEvents.MessageUpdated)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ message }) => this.applyUpdate(message));
+      .subscribe(({ message }) => this.replaceMessage(message));
 
     this.socket
       .on(ServerEvents.TypingUpdate)
@@ -194,7 +196,7 @@ export class PanelChatService {
     this.socket
       .on(ServerEvents.AiGenerating)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => this.aiGenerating.set(event.generating));
+      .subscribe((event) => this.isGeneratingReply.set(event.generating));
 
     this.socket
       .on(ServerEvents.MessageReceipt)

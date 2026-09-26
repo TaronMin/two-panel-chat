@@ -32,32 +32,32 @@ export class MessageBubbleComponent {
   readonly editMessage = output<MessageEdit>();
   readonly deleteMessage = output<string>();
 
-  private readonly fb = inject(FormBuilder);
+  private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly maxLength = MESSAGE_MAX_LENGTH;
+  protected readonly messageMaxLength = MESSAGE_MAX_LENGTH;
 
-  protected readonly editControl = this.fb.nonNullable.control('', [
+  protected readonly editControl = this.formBuilder.nonNullable.control('', [
     Validators.maxLength(MESSAGE_MAX_LENGTH),
   ]);
-  protected readonly editing = signal(false);
-  protected readonly confirmingDelete = signal(false);
+  protected readonly isEditing = signal(false);
+  protected readonly isConfirmingDelete = signal(false);
 
   readonly isOwn = computed(() => this.message().sender === this.viewerRole());
 
-  protected readonly deleted = computed(() => Boolean(this.message().deletedAt));
+  protected readonly isDeleted = computed(() => Boolean(this.message().deletedAt));
 
   protected readonly showAiBadge = computed(
-    () => this.message().mode === 'ai' && this.isOwn() && !this.deleted(),
+    () => this.message().mode === 'ai' && this.isOwn() && !this.isDeleted(),
   );
 
-  protected readonly actionsAvailable = computed(
-    () => this.isOwn() && !this.deleted() && this.canModify(),
+  protected readonly canShowActions = computed(
+    () => this.isOwn() && !this.isDeleted() && this.canModify(),
   );
 
   readonly senderLabel = computed(() => (this.message().sender === 'user' ? 'User' : 'Answerer'));
 
   readonly bubbleClass = computed(() => {
-    if (this.deleted()) {
+    if (this.isDeleted()) {
       return 'rounded-bl-sm bg-slate-100 text-slate-400 italic ring-1 ring-slate-200';
     }
     if (!this.isOwn()) {
@@ -80,13 +80,13 @@ export class MessageBubbleComponent {
   });
 
   protected startEdit(): void {
-    this.confirmingDelete.set(false);
+    this.isConfirmingDelete.set(false);
     this.editControl.setValue(this.message().content);
-    this.editing.set(true);
+    this.isEditing.set(true);
   }
 
   protected cancelEdit(): void {
-    this.editing.set(false);
+    this.isEditing.set(false);
     this.editControl.setValue('');
   }
 
@@ -97,7 +97,7 @@ export class MessageBubbleComponent {
       return;
     }
     this.editMessage.emit({ id: this.message().id, content });
-    this.editing.set(false);
+    this.isEditing.set(false);
   }
 
   protected onEditKeydown(event: Event): void {
@@ -110,15 +110,15 @@ export class MessageBubbleComponent {
   }
 
   protected askDelete(): void {
-    this.confirmingDelete.set(true);
+    this.isConfirmingDelete.set(true);
   }
 
   protected cancelDelete(): void {
-    this.confirmingDelete.set(false);
+    this.isConfirmingDelete.set(false);
   }
 
   protected confirmDelete(): void {
-    this.confirmingDelete.set(false);
+    this.isConfirmingDelete.set(false);
     this.deleteMessage.emit(this.message().id);
   }
 }

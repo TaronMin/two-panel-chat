@@ -28,16 +28,16 @@
       class="max-w-full min-w-0 rounded-2xl px-3.5 py-2 text-sm leading-relaxed wrap-anywhere shadow-sm"
       [class]="bubbleClass()"
     >
-      @if (deleted()) {
+      @if (isDeleted()) {
         This message was deleted
-      } @else if (editing()) {
+      } @else if (isEditing()) {
         <div class="flex w-[min(24rem,70vw)] flex-col gap-2">
           <label class="sr-only" [attr.for]="'edit-' + message().id">Edit message</label>
           <textarea
             [id]="'edit-' + message().id"
             [formControl]="editControl"
             rows="3"
-            [attr.maxlength]="maxLength"
+            [attr.maxlength]="messageMaxLength"
             class="w-full resize-y rounded-lg border-0 bg-white/95 px-2.5 py-1.5 text-base text-slate-700 outline-none ring-1 ring-white/40 focus:ring-2 focus:ring-white sm:text-sm"
             (keydown.enter)="onEditKeydown($event)"
             (keydown.escape)="cancelEdit()"
@@ -67,8 +67,8 @@
       }
     </div>
 
-    @if (actionsAvailable() && !editing()) {
-      @if (confirmingDelete()) {
+    @if (canShowActions() && !isEditing()) {
+      @if (isConfirmingDelete()) {
         <div class="flex items-center gap-2 px-1 text-[11px] text-slate-500">
           <span>Delete this message?</span>
           <button
@@ -119,7 +119,7 @@
       }
     }
 
-    @if (isOwn() && !deleted()) {
+    @if (isOwn() && !isDeleted()) {
       <span class="px-1 text-[10px] text-slate-400">{{ statusLabel() }}</span>
     }
   </div>

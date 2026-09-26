@@ -13,19 +13,21 @@ import type {
 @Injectable({ providedIn: 'root' })
 export class ChatApiService {
   private readonly http = inject(HttpClient);
-  private readonly base = `${inject(API_BASE_URL)}/api`;
+  private readonly apiRoot = `${inject(API_BASE_URL)}/api`;
 
   createConversation(title?: string): Observable<Conversation> {
-    return this.http.post<Conversation>(`${this.base}/conversations`, { title });
+    return this.http.post<Conversation>(`${this.apiRoot}/conversations`, { title });
   }
 
   getState(conversationId: string): Observable<ConversationState> {
-    return this.http.get<ConversationState>(`${this.base}/conversations/${conversationId}/state`);
+    return this.http.get<ConversationState>(
+      `${this.apiRoot}/conversations/${conversationId}/state`,
+    );
   }
 
   sendMessage(conversationId: string, payload: SendMessagePayload): Observable<Message> {
     return this.http.post<Message>(
-      `${this.base}/conversations/${conversationId}/messages`,
+      `${this.apiRoot}/conversations/${conversationId}/messages`,
       payload,
     );
   }
@@ -35,7 +37,7 @@ export class ChatApiService {
     options: { instruction?: string; autoSend?: boolean } = {},
   ): Observable<{ suggestion: AiSuggestion; sent?: Message }> {
     return this.http.post<{ suggestion: AiSuggestion; sent?: Message }>(
-      `${this.base}/conversations/${conversationId}/suggestions`,
+      `${this.apiRoot}/conversations/${conversationId}/suggestions`,
       options,
     );
   }

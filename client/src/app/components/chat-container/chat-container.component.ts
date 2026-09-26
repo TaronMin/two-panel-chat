@@ -14,14 +14,14 @@ import { UserPanelComponent } from '../user-panel/user-panel.component';
 })
 export class ChatContainerComponent {
   protected readonly session = inject(ChatSessionService);
-  private readonly connections = inject(ConnectionRegistryService);
+  private readonly connectionRegistry = inject(ConnectionRegistryService);
 
   protected readonly conversationId = signal<string | null>(null);
 
   protected readonly activePanel = signal<SenderRole>('user');
 
   protected readonly statusLabel = computed(() => {
-    switch (this.connections.overall()) {
+    switch (this.connectionRegistry.overallStatus()) {
       case 'connected':
         return 'Connected';
       case 'reconnecting':
@@ -34,7 +34,7 @@ export class ChatContainerComponent {
   });
 
   protected readonly statusDotClass = computed(() => {
-    switch (this.connections.overall()) {
+    switch (this.connectionRegistry.overallStatus()) {
       case 'connected':
         return 'bg-emerald-500';
       case 'reconnecting':
@@ -46,17 +46,17 @@ export class ChatContainerComponent {
   });
 
   protected readonly statusTextClass = computed(() =>
-    this.connections.overall() === 'connected' ? 'text-emerald-700' : 'text-slate-600',
+    this.connectionRegistry.overallStatus() === 'connected' ? 'text-emerald-700' : 'text-slate-600',
   );
 
   constructor() {
     void this.session
-      .bootstrap()
+      .ensureConversation()
       .then((conversation) => this.conversationId.set(conversation.id))
       .catch(() => this.conversationId.set(null));
   }
 
-  protected panelVisibility(panel: SenderRole): string {
+  protected panelVisibilityClass(panel: SenderRole): string {
     const display = this.activePanel() === panel ? 'flex' : 'hidden lg:flex';
     return `min-h-0 min-w-0 flex-col ${display}`;
   }
@@ -67,7 +67,7 @@ export class ChatContainerComponent {
       : 'text-slate-500 hover:text-slate-700';
   }
 
-  protected async newConversation(): Promise<void> {
+  protected async startNewConversation(): Promise<void> {
     this.conversationId.set(null);
     const conversation = await this.session.startNewConversation();
     this.conversationId.set(conversation.id);

@@ -27,22 +27,22 @@ export class UserPanelComponent {
   readonly conversationId = input.required<string>();
 
   protected readonly chat = inject(PanelChatService);
-  private readonly fb = inject(FormBuilder);
+  private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly maxLength = MESSAGE_MAX_LENGTH;
+  protected readonly messageMaxLength = MESSAGE_MAX_LENGTH;
 
-  protected readonly form = this.fb.nonNullable.group({
+  protected readonly composerForm = this.formBuilder.nonNullable.group({
     content: ['', [Validators.required, Validators.maxLength(MESSAGE_MAX_LENGTH)]],
   });
 
-  protected readonly busy = signal(false);
+  protected readonly isSending = signal(false);
 
-  private readonly contentValue = toSignal(this.form.controls.content.valueChanges, {
+  private readonly contentValue = toSignal(this.composerForm.controls.content.valueChanges, {
     initialValue: '',
   });
 
   protected readonly contentLength = computed(() => this.contentValue().length);
-  protected readonly showCounter = computed(
+  protected readonly showContentCounter = computed(
     () => this.contentLength() >= MESSAGE_MAX_LENGTH * COUNTER_VISIBLE_RATIO,
   );
 
@@ -58,7 +58,7 @@ export class UserPanelComponent {
     effect(() => {
       const id = this.conversationId();
       if (id) {
-        void this.chat.init(id, 'user');
+        void this.chat.joinConversation(id, 'user');
       }
     });
 
@@ -76,31 +76,31 @@ export class UserPanelComponent {
     void this.chat.deleteMessage(id);
   }
 
-  protected onInput(): void {
-    this.chat.noteActivity(Boolean(this.form.controls.content.value.trim()));
+  protected onComposerInput(): void {
+    this.chat.reportComposerActivity(Boolean(this.composerForm.controls.content.value.trim()));
   }
 
-  protected onEnter(event: Event): void {
+  protected onComposerEnter(event: Event): void {
     const keyboardEvent = event as KeyboardEvent;
     if (keyboardEvent.shiftKey) {
       return;
     }
     keyboardEvent.preventDefault();
-    void this.submit();
+    void this.sendMessage();
   }
 
-  protected async submit(): Promise<void> {
-    if (this.form.invalid || this.busy()) {
+  protected async sendMessage(): Promise<void> {
+    if (this.composerForm.invalid || this.isSending()) {
       return;
     }
-    this.busy.set(true);
+    this.isSending.set(true);
     try {
-      const sent = await this.chat.send(this.form.controls.content.value, 'manual');
+      const sent = await this.chat.sendMessage(this.composerForm.controls.content.value, 'manual');
       if (sent) {
-        this.form.reset({ content: '' });
+        this.composerForm.reset({ content: '' });
       }
     } finally {
-      this.busy.set(false);
+      this.isSending.set(false);
     }
   }
 }

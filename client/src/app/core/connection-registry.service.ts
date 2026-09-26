@@ -3,10 +3,10 @@ import type { ConnectionStatus } from './contracts';
 
 @Injectable({ providedIn: 'root' })
 export class ConnectionRegistryService {
-  private readonly sockets = signal<Signal<ConnectionStatus>[]>([]);
+  private readonly trackedStatuses = signal<Signal<ConnectionStatus>[]>([]);
 
-  readonly overall = computed<ConnectionStatus>(() => {
-    const statuses = this.sockets().map((status) => status());
+  readonly overallStatus = computed<ConnectionStatus>(() => {
+    const statuses = this.trackedStatuses().map((status) => status());
     if (statuses.length === 0) {
       return 'connecting';
     }
@@ -20,7 +20,8 @@ export class ConnectionRegistryService {
   });
 
   register(status: Signal<ConnectionStatus>): () => void {
-    this.sockets.update((all) => [...all, status]);
-    return () => this.sockets.update((all) => all.filter((entry) => entry !== status));
+    this.trackedStatuses.update((tracked) => [...tracked, status]);
+    return () =>
+      this.trackedStatuses.update((tracked) => tracked.filter((entry) => entry !== status));
   }
 }

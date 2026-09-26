@@ -21,7 +21,7 @@
 
       <button
         type="button"
-        (click)="newConversation()"
+        (click)="startNewConversation()"
         class="rounded-full bg-slate-800 px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-slate-700"
       >
         New<span class="hidden sm:inline"> conversation</span>
@@ -29,9 +29,9 @@
     </div>
   </header>
 
-  @if (session.error(); as error) {
+  @if (session.sessionError(); as error) {
     <p class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
-      {{ error }} — is the Nest server running on port 3000?
+      {{ error }}
     </p>
   }
 
@@ -64,14 +64,14 @@
     </div>
 
     <main class="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2">
-      <div [class]="panelVisibility('user')">
+      <div [class]="panelVisibilityClass('user')">
         <app-user-panel class="min-h-0 flex-1" [conversationId]="id" />
       </div>
-      <div [class]="panelVisibility('answerer')">
+      <div [class]="panelVisibilityClass('answerer')">
         <app-answerer-panel class="min-h-0 flex-1" [conversationId]="id" />
       </div>
     </main>
-  } @else if (!session.error()) {
+  } @else if (!session.sessionError()) {
     <p class="flex flex-1 items-center justify-center text-sm text-slate-400">
       Starting a conversation…
     </p>
