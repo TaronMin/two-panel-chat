@@ -1,0 +1,28 @@
+<div #scroller class="thread-scroll flex-1 space-y-3 overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
+  @for (message of messages(); track message.id) {
+    <app-message-bubble
+      [message]="message"
+      [viewerRole]="viewerRole()"
+      [canModify]="canModify()"
+      (editMessage)="editMessage.emit($event)"
+      (deleteMessage)="deleteMessage.emit($event)"
+    />
+  } @empty {
+    <p class="mt-8 text-center text-sm text-slate-400">{{ emptyHint() }}</p>
+  }
+
+  @if (typingLabel()) {
+    <div class="flex items-center gap-2 px-1 pt-1 text-xs text-slate-500">
+      <span class="flex gap-1" aria-hidden="true">
+        <span
+          class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]"
+        ></span>
+        <span
+          class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]"
+        ></span>
+        <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"></span>
+      </span>
+      {{ typingLabel() }}
+    </div>
+  }
+</div>

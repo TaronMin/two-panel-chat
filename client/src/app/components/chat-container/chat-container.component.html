@@ -1,0 +1,79 @@
+<div class="mx-auto flex h-dvh max-w-7xl flex-col gap-2 p-2 sm:gap-3 sm:p-4">
+  <header class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1">
+    <div class="min-w-0">
+      <h1 class="truncate text-sm font-semibold text-slate-800 sm:text-base">
+        {{ session.conversation()?.title ?? 'Two-panel chat' }}
+      </h1>
+      <p class="hidden text-[11px] text-slate-500 sm:block">
+        One conversation, two perspectives every message travels over the hub.
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      <span
+        class="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium shadow-sm ring-1 ring-slate-200"
+        [class]="statusTextClass()"
+        role="status"
+      >
+        <span class="h-2 w-2 rounded-full" [class]="statusDotClass()" aria-hidden="true"></span>
+        <span class="hidden sm:inline">{{ statusLabel() }}</span>
+      </span>
+
+      <button
+        type="button"
+        (click)="newConversation()"
+        class="rounded-full bg-slate-800 px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition-colors hover:bg-slate-700"
+      >
+        New<span class="hidden sm:inline"> conversation</span>
+      </button>
+    </div>
+  </header>
+
+  @if (session.error(); as error) {
+    <p class="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">
+      {{ error }} — is the Nest server running on port 3000?
+    </p>
+  }
+
+  @if (conversationId(); as id) {
+    <div
+      class="flex rounded-xl bg-slate-200/70 p-0.5 lg:hidden"
+      role="tablist"
+      aria-label="Choose a panel"
+    >
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activePanel() === 'user'"
+        (click)="activePanel.set('user')"
+        class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+        [class]="tabClass('user')"
+      >
+        User
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activePanel() === 'answerer'"
+        (click)="activePanel.set('answerer')"
+        class="flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+        [class]="tabClass('answerer')"
+      >
+        Answerer
+      </button>
+    </div>
+
+    <main class="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2">
+      <div [class]="panelVisibility('user')">
+        <app-user-panel class="min-h-0 flex-1" [conversationId]="id" />
+      </div>
+      <div [class]="panelVisibility('answerer')">
+        <app-answerer-panel class="min-h-0 flex-1" [conversationId]="id" />
+      </div>
+    </main>
+  } @else if (!session.error()) {
+    <p class="flex flex-1 items-center justify-center text-sm text-slate-400">
+      Starting a conversation…
+    </p>
+  }
+</div>

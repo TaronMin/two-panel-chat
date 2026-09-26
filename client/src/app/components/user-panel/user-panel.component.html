@@ -1,0 +1,74 @@
+<section
+  class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
+  aria-label="User chat panel"
+>
+  <header
+    class="flex items-center justify-between gap-2 border-b border-slate-100 bg-indigo-50/60 px-3 py-2.5 sm:px-4 sm:py-3"
+  >
+    <div class="flex min-w-0 items-center gap-2.5">
+      <span
+        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white"
+        >U</span
+      >
+      <div class="min-w-0">
+        <h2 class="text-sm font-semibold text-slate-800">User</h2>
+        <p class="truncate text-[11px] text-slate-500">{{ presenceLabel() }}</p>
+      </div>
+    </div>
+    <span
+      class="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-700"
+    >
+      Manual
+    </span>
+  </header>
+
+  <app-message-thread
+    [messages]="chat.messages()"
+    viewerRole="user"
+    [typingLabel]="typingLabel()"
+    [canModify]="chat.ready() && !busy()"
+    emptyHint="Say something to start the conversation."
+    (editMessage)="onEditMessage($event)"
+    (deleteMessage)="onDeleteMessage($event)"
+  />
+
+  @if (chat.sendError(); as error) {
+    <p class="mx-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{{ error }}</p>
+  }
+
+  <form
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    class="flex items-end gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-3"
+  >
+    <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <label class="sr-only" for="user-message">Message as user</label>
+      <textarea
+        id="user-message"
+        formControlName="content"
+        rows="1"
+        placeholder="Type a message…"
+        [attr.maxlength]="maxLength"
+        class="max-h-32 min-h-[2.5rem] w-full resize-y rounded-xl border-0 bg-white px-3 py-2 text-base text-slate-700 shadow-sm ring-1 ring-slate-200 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 sm:text-sm"
+        (input)="onInput()"
+        (keydown.enter)="onEnter($event)"
+      ></textarea>
+      @if (showCounter()) {
+        <p
+          class="px-1 text-right text-[10px] tabular-nums"
+          [class]="contentLength() >= maxLength ? 'font-semibold text-rose-600' : 'text-slate-400'"
+          aria-live="polite"
+        >
+          {{ contentLength() }} / {{ maxLength }}
+        </p>
+      }
+    </div>
+    <button
+      type="submit"
+      [disabled]="form.invalid || !chat.ready() || busy()"
+      class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+    >
+      {{ busy() ? 'Sending…' : 'Send' }}
+    </button>
+  </form>
+</section>
