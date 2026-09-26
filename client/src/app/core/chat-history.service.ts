@@ -62,27 +62,21 @@ export class ChatHistoryService {
   readonly hasLoaded = signal(false);
   readonly count = computed(() => this.entries().length);
 
-  track(conversationId: string, messages: readonly Message[], fallbackTitle: string): void {
-    const visible = messages.filter((message) => !message.deletedAt);
-    if (visible.length === 0) {
-      return;
-    }
-
-    const summary = this.summaryFrom(conversationId, visible, fallbackTitle);
-    const existing = this.entries().find((entry) => entry.id === conversationId);
-    if (existing && this.sameSummary(existing, summary)) {
-      return;
-    }
-
-    this.update((current) => [summary, ...current.filter((entry) => entry.id !== conversationId)]);
+  remember(conversation: Conversation): void {
+    this.update((current) => [
+      {
+        id: conversation.id,
+        label: truncate(conversation.title, LABEL_MAX_LENGTH) || 'New conversation',
+        preview: 'No messages yet',
+        updatedAt: conversation.createdAt,
+        messageCount: 0,
+      },
+      ...current.filter((entry) => entry.id !== conversation.id),
+    ]);
   }
 
   forget(conversationId: string): void {
     this.update((current) => current.filter((entry) => entry.id !== conversationId));
-  }
-
-  clear(): void {
-    this.update(() => []);
   }
 
   async refresh(): Promise<void> {
@@ -95,24 +89,11 @@ export class ChatHistoryService {
     this.isRefreshing.set(true);
     try {
       const resolved = await Promise.all(ids.map((id) => this.summarise(id)));
-      this.update(() =>
-        resolved.filter(
-          (entry): entry is ConversationSummary => entry !== null && entry.messageCount > 0,
-        ),
-      );
+      this.update(() => resolved.filter((entry): entry is ConversationSummary => entry !== null));
     } finally {
       this.isRefreshing.set(false);
       this.hasLoaded.set(true);
     }
-  }
-
-  private sameSummary(left: ConversationSummary, right: ConversationSummary): boolean {
-    return (
-      left.label === right.label &&
-      left.preview === right.preview &&
-      left.updatedAt === right.updatedAt &&
-      left.messageCount === right.messageCount
-    );
   }
 
   private async summarise(conversationId: string): Promise<ConversationSummary | null> {
@@ -130,27 +111,23 @@ export class ChatHistoryService {
 
   private toSummary(state: ConversationState): ConversationSummary {
     const visible = state.messages.filter((message) => !message.deletedAt);
-    const summary = this.summaryFrom(state.conversation.id, visible, state.conversation.title);
-    return { ...summary, updatedAt: summary.updatedAt || state.conversation.createdAt };
-  }
-
-  private summaryFrom(
-    conversationId: string,
-    visible: readonly Message[],
-    fallbackTitle: string,
-  ): ConversationSummary {
     const firstFromUser = visible.find((message) => message.sender === 'user');
     const last = visible[visible.length - 1];
 
     return {
-      id: conversationId,
-      label: firstFromUser
-        ? truncate(firstFromUser.content, LABEL_MAX_LENGTH)
-        : truncate(fallbackTitle, LABEL_MAX_LENGTH) || 'New conversation',
+      id: state.conversation.id,
+      label: this.labelFor(state.conversation, firstFromUser),
       preview: last ? truncate(last.content, PREVIEW_MAX_LENGTH) : 'No messages yet',
-      updatedAt: last?.createdAt ?? '',
+      updatedAt: last?.createdAt ?? state.conversation.createdAt,
       messageCount: visible.length,
     };
+  }
+
+  private labelFor(conversation: Conversation, firstFromUser: Message | undefined): string {
+    if (firstFromUser) {
+      return truncate(firstFromUser.content, LABEL_MAX_LENGTH);
+    }
+    return truncate(conversation.title, LABEL_MAX_LENGTH) || 'New conversation';
   }
 
   private update(change: (current: ConversationSummary[]) => ConversationSummary[]): void {

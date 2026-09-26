@@ -90,15 +90,3 @@
     </ul>
   }
 </div>
-
-@if (summaries().length > 0) {
-  <div class="shrink-0 px-3 pb-3">
-    <button
-      type="button"
-      (click)="clear.emit()"
-      class="w-full rounded-lg px-2 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
-    >
-      Clear history
-    </button>
-  </div>
-}

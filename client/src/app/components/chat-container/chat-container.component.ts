@@ -134,11 +134,6 @@ export class ChatContainerComponent {
     void this.history.refresh();
   }
 
-  protected clearHistory(): void {
-    this.history.clear();
-    void this.startNewConversation();
-  }
-
   protected removeConversation(id: string): void {
     this.history.forget(id);
     if (id === this.conversationId()) {
