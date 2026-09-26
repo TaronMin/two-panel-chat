@@ -1,4 +1,4 @@
-# Two-Panel Chat
+# Chat
 
 **▶ Live demo: <https://taronmin.github.io/two-panel-chat/>**
 

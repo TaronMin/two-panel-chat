@@ -20,7 +20,7 @@ export class ChatSessionService {
   }
 
   async startNewConversation(): Promise<Conversation> {
-    const conversation = await firstValueFrom(this.chatApi.createConversation('Two-panel chat'));
+    const conversation = await firstValueFrom(this.chatApi.createConversation('Chat'));
     sessionStorage.setItem(CONVERSATION_KEY, conversation.id);
     this.conversation.set(conversation);
     this.pendingConversation = Promise.resolve(conversation);
