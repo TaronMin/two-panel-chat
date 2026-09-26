@@ -1,4 +1,4 @@
-# Chat
+# Two-Panel Chat
 
 **▶ Live demo: <https://taronmin.github.io/two-panel-chat/>**
 
@@ -23,8 +23,6 @@ array rendered twice.
 - **AI answerer** with three modes: draft-and-review, auto-send, or fully automatic
   replies to every incoming message.
 - **Edit and delete** your own messages, with soft-deleted tombstones.
-- **Chat history** — every conversation this browser has started, switchable from a sidebar
-  on desktop or a slide-over drawer on mobile.
 - **Markdown rendering** for AI replies, sanitised on the way into the DOM.
 - **Responsive** — side-by-side on desktop, tabbed panels on mobile.
 
@@ -86,22 +84,8 @@ mode changes and AI generation state.
 
 There is no database. Conversations and messages live in a `Map` in
 `server/src/chat/services/message-store.service.ts`, so restarting the server clears
-everything. The browser remembers the conversation the tab has open in `sessionStorage` and
-quietly starts a new one when the server no longer recognises it.
-
-### Chat history
-
-The server has no accounts, so history is scoped to the browser rather than to a user:
-`ChatHistoryService` keeps the conversations this browser started in `localStorage` and
-looks each one up through `GET /:id/state`. That deliberately avoids building the switcher
-on `GET /api/conversations`, which returns *every* visitor's conversation and would expose
-them to each other on the shared demo.
-
-Each entry caches a label, preview and timestamp so the list paints before the network
-answers; a background refresh then corrects them. Labels come from the first user message,
-because the stored title is the same for every conversation. A conversation the server has
-forgotten is pruned on a `404` — and only on a `404`, so an offline blip cannot wipe the
-list. Removing an entry drops it locally; it does not delete anything server-side.
+everything. The browser remembers its conversation id in `sessionStorage` and quietly
+starts a new one when the server no longer recognises it.
 
 ### The answerer's modes
 
