@@ -72,12 +72,7 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test",
-          "options": {
-            "setupFiles": [
-              "src/test-setup.ts"
-            ]
-          }
+          "builder": "@angular/build:unit-test"
         }
       }
     }

@@ -86,6 +86,7 @@ export class AnswererPanelComponent {
   protected readonly generationError = signal<string | null>(null);
   protected readonly autoSend = signal(false);
   protected readonly autoAnswer = signal(false);
+  protected readonly isSending = signal(false);
   private readonly ownRequestInFlight = signal(false);
 
   private lastAutoAnsweredMessageId: string | null = null;
@@ -225,13 +226,18 @@ export class AnswererPanelComponent {
 
   protected async sendDraftReply(): Promise<void> {
     const suggestion = this.draftSuggestion();
-    if (!suggestion || this.isGenerating() || this.draftControl.invalid) {
+    if (!suggestion || this.isGenerating() || this.isSending() || this.draftControl.invalid) {
       return;
     }
-    const sent = await this.chat.sendMessage(this.draftControl.value, 'ai', suggestion.provider);
-    if (sent) {
-      this.discardDraft();
-      this.instructionControl.setValue('');
+    this.isSending.set(true);
+    try {
+      const sent = await this.chat.sendMessage(this.draftControl.value, 'ai', suggestion.provider);
+      if (sent) {
+        this.discardDraft();
+        this.instructionControl.setValue('');
+      }
+    } finally {
+      this.isSending.set(false);
     }
   }
 
@@ -267,12 +273,17 @@ export class AnswererPanelComponent {
   }
 
   protected async sendManualMessage(): Promise<void> {
-    if (this.isGenerating() || this.composerForm.invalid) {
+    if (this.isGenerating() || this.isSending() || this.composerForm.invalid) {
       return;
     }
-    const sent = await this.chat.sendMessage(this.composerForm.controls.content.value, 'manual');
-    if (sent) {
-      this.composerForm.reset({ content: '' });
+    this.isSending.set(true);
+    try {
+      const sent = await this.chat.sendMessage(this.composerForm.controls.content.value, 'manual');
+      if (sent) {
+        this.composerForm.reset({ content: '' });
+      }
+    } finally {
+      this.isSending.set(false);
     }
   }
 

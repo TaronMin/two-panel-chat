@@ -36,6 +36,16 @@
     <p class="mx-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{{ error }}</p>
   }
 
+  @if (!chat.isReady()) {
+    <p
+      class="mx-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"
+      role="status"
+      aria-live="polite"
+    >
+      Not connected: trying to reconnect. Sending is paused until the link is back.
+    </p>
+  }
+
   <form
     [formGroup]="composerForm"
     (ngSubmit)="sendMessage()"

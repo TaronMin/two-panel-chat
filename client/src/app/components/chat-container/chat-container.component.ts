@@ -60,6 +60,10 @@ export class ChatContainerComponent {
     this.connectionRegistry.overallStatus() === 'connected' ? 'text-emerald-700' : 'text-slate-600',
   );
 
+  protected readonly isConnected = computed(
+    () => this.connectionRegistry.overallStatus() === 'connected',
+  );
+
   constructor() {
     void this.session
       .ensureConversation()

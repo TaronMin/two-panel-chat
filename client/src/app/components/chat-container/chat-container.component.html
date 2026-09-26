@@ -48,7 +48,7 @@
         role="status"
       >
         <span class="h-2 w-2 rounded-full" [class]="statusDotClass()" aria-hidden="true"></span>
-        <span class="hidden sm:inline">{{ statusLabel() }}</span>
+        <span [class]="isConnected() ? 'hidden sm:inline' : 'inline'">{{ statusLabel() }}</span>
       </span>
     </header>
 
