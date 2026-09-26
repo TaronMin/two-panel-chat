@@ -9,7 +9,7 @@ services:
     healthCheckPath: /api/conversations
     envVars:
       - key: NODE_VERSION
-        value: 22
+        value: 24
       - key: AI_PROVIDER
         value: groq
       - key: AI_MAX_TOKENS

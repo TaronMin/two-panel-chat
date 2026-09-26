@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://REPLACE-WITH-YOUR-API-HOST',
+  apiBaseUrl: 'https://two-panel-chat-api.onrender.com',
 };
